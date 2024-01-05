@@ -1,9 +1,7 @@
--- local THIS_QUICKAPP_ID = 24
-local TEMPERATURE_SENSOR_ID = 44
+local TEMPERATURE_SENSOR_ID = 104
 local G_MIN = 18
 local G_MAX = 30
-local FREQUENCY_MINS = 0.1
-local GLOBAL_OBJ = "zoneControlSettings"
+local FREQUENCY_MINS = 0.5
 
 local value
 local range
@@ -17,14 +15,37 @@ local sliderVal
 
 local obj
 
+function QuickApp:iZone_zoneControl(mode)
+    local iZoneCommandBody =  {ZoneMode = {Index = 1, Mode = mode}} -- Open Zone 2
+    local url_iZoneCommand = "http://10.1.5.104/iZoneCommandV2"
+    
+    net.HTTPClient():request(url_iZoneCommand, {
+        options={
+            headers = { Accept = "application/json" },
+            data =  json.encode(iZoneCommandBody),
+            method = 'POST'
+        },
+        success = function(response)
+            self:debug("response status:", response.status) 
+            self:debug("headers:", response.headers["Connection"])
+                self:debug("iZone response data:", json.encode(response.data)) 
+        end,
+        error = function(error)
+            self:debug('error: ' .. error)
+        end,
+    })
+end
+
 function QuickApp:turnOn()
 self:updateProperty("value", true)
+self:iZone_zoneControl(1)
 zoneOpen = true
 -- self:debug("Switch was turned on")
 end
 
 function QuickApp:turnOff()
 self:updateProperty("value", false)
+self:iZone_zoneControl(2)
 zoneOpen = false
 -- self:debug("Switch was turned off")
 end
@@ -100,7 +121,7 @@ end
 
 function QuickApp:setGlobal()
     -- self:debug(obj.foo)
-    fibaro.setGlobalVariable(GLOBAL_OBJ, json.encode(obj))
+    fibaro.setGlobalVariable("zoneControlSettings", json.encode(obj))
 end
 
 function QuickApp:onButtonClicked(event)
@@ -130,7 +151,8 @@ end
 -- end
 
 function QuickApp:onRangeChanged(event)
-    range = tonumber(string.sub(event.elementName, -1))
+    -- range = tonumber(string.sub(event.elementName, -1))
+    range = tonumber(event.elementName)
     self:updateView("Range_label","text", "Temperature Range: " ..range)
     self:debug("The range has been changed to: " ..range)
     -- self:checkOnOFF()
@@ -152,8 +174,8 @@ end
 
 function QuickApp:onInit()
 
-    -- obj = json.decode(fibaro.getGlobalVariable(GLOBAL_OBJ))
-    obj = json.decode(fibaro.getGlobalVariable(GLOBAL_OBJ).."")
+    -- obj = json.decode(fibaro.getGlobalVariable("zoneControlSettings"))
+    obj = json.decode(fibaro.getGlobalVariable("zoneControlSettings").."")
     -- self:debug(obj.foo)
     value = obj.sliderVal
     range = obj.range
